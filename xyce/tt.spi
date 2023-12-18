@@ -1,1 +1,1 @@
-.include ../pdk/libraries/sky130_fd_pr/xyce_latest/models/corners/tt.spice
+.include ../pdk/libraries/sky130_fd_pr/xyce/models/corners/tt.spice
