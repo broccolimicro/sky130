@@ -1,3 +1,3 @@
 [submodule "pdk"]
 	path = pdk
-	url = https://github.com/google/skywater-pdk.git
+	url = https://github.com/nbingham1/skywater-pdk.git
