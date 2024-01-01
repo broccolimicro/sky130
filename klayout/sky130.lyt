@@ -4,7 +4,7 @@
  <description>SkyWater 130nm technology</description>
  <dbu>0.001</dbu>
  <base-path>/opt/cad/conf/sky130/klayout</base-path>
- <layer-properties_file>SKY130.lyp</layer-properties_file>
+ <layer-properties_file>sky130.lyp</layer-properties_file>
  <add-other-layers>true</add-other-layers>
  <reader-options>
   <gds2>
