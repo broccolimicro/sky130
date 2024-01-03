@@ -239,7 +239,7 @@ def createLYTFromACT(prs2net, layout, actHome):
 			for layer, gds in layers.items()
 		]) + ")"
 	techName = layout["info"]["name"]
-	dbu = float(layout["general"]["scale"])*1e-9
+	dbu = float(layout["general"]["scale"])*1e-3
 
 	# build the tech file (lyt)
 	if "technology" not in lyt:
@@ -258,11 +258,6 @@ def createLYTFromACT(prs2net, layout, actHome):
 
 	if "common" not in lyt["technology"]["reader-options"]:
 		lyt["technology"]["reader-options"]["common"] = dict()
-
-	# GDS2 and OASIS (both)
-	lyt["technology"]["reader-options"]["common"] |= {
-		"layer-map": layerMap,	
-	}
 
 	# LEFDEF Layer Purposes
 	# from https://github.com/KLayout/klayout/blob/6c8d97adc97bf992ccbdb5f7950cb95a28ffeab9/src/plugins/streamers/lefdef/db_plugin/dbLEFDEFImporter.h#L1037
@@ -298,51 +293,51 @@ def createLYTFromACT(prs2net, layout, actHome):
 		"region-layer": "place.mask", # tell the placer to put cells in an area
 	
 		"produce-net-names": True,
-		"net-property-name": "#23", # guessing this is the gds datatype of the *.net layers?
+		#"net-property-name": "#23", # guessing this is the gds datatype of the *.net layers?
 		"produce-inst-names": True,
-		"inst-property-name": "#??", # TODO dump standard cell gds and look for "shape properties"
+		#"inst-property-name": "#1", # TODO dump standard cell gds and look for "shape properties"
 		"produce-pin-names": True,
-		"pin-property-name": "#??",
+		#"pin-property-name": "#1",
 
 		"produce-cell-outlines": True,
 		"cell-outline-layer": "areaid_sc.identifier",
 
 		"produce-via-geometry": True,
 		"via-geometry-suffix-string": ".drawing",
-		"via-geometry-datatype-string": None,
+		#"via-geometry-datatype-string": None,
 
 		"produce-pins": True,
 		"pins-suffix-string": ".pin",
-		"pins-datatype-string": None,
+		#"pins-datatype-string": None,
 		"produce-lef-pins": True,
 		"lef_pins-suffix-string": ".pin",
-		"lef_pins-datatype-string": None,		
+		#"lef_pins-datatype-string": None,		
 
 		"produce-fills": True,
 		"fills-suffix-string": ".drawing",
-		"fills-datatype-string": None,
+		#"fills-datatype-string": None,
 
 		"produce-obstructions": True,
 		"obstructions-suffix": ".drawing",
-		"obstructions-datatype": None,
+		#"obstructions-datatype": None,
 
 		"produce-blockages": True,
 		"blockages-suffix": ".block",
-		"blockages-datatype": None,
+		#"blockages-datatype": None,
 
 		"produce-labels": True,
 		"labels-suffix": ".label",
-		"labels-datatype": None,
+		#"labels-datatype": None,
 		"produce-lef-labels": True,
 		"lef-labels-suffix": ".label",
-		"lef-labels-datatype": None,
+		#"lef-labels-datatype": None,
 
 		"produce-routing": True,
 		"routing-suffix-string": ".drawing",
-		"routing-datatype-string": None,
+		#"routing-datatype-string": None,
 		"produce-special-routing": True,
 		"special-routing-suffix-string": ".drawing",
-		"special-routing-datatype-string": None,
+		#"special-routing-datatype-string": None,
 		"via-cellname-prefix": None,
 		"lef-files": None,
 	}
@@ -350,24 +345,18 @@ def createLYTFromACT(prs2net, layout, actHome):
 	if "mebes" not in lyt["technology"]["reader-options"]:
 		lyt["technology"]["reader-options"]["mebes"] = dict()
 
-	lyt["technology"]["reader-options"]["mebes"] |= {
-		"layer-map": layerMap,
-	}
-
 	if "dxf" not in lyt["technology"]["reader-options"]:
 		lyt["technology"]["reader-options"]["dxf"] = dict()
 
 	lyt["technology"]["reader-options"]["dxf"] |= {
-		"layer-map": layerMap,
 		"dbu": dbu,
-		"unit": prs2net["net"]["lambda"]/dbu,
+		"unit": round(prs2net["net"]["lambda"]*1e6/dbu),
 	}
 
 	if "cif" not in lyt["technology"]["reader-options"]:
 		lyt["technology"]["reader-options"]["cif"] = dict()
 
 	lyt["technology"]["reader-options"]["cif"] |= {
-		"layer-map": layerMap,
 		"dbu": dbu,
 	}
 
@@ -375,9 +364,8 @@ def createLYTFromACT(prs2net, layout, actHome):
 		lyt["technology"]["reader-options"]["mag"] = dict()
 
 	lyt["technology"]["reader-options"]["mag"] |= {
-		"layer-map": layerMap,
 		"dbu": dbu,
-		"lambda": prs2net["net"]["lambda"]/dbu,
+		"lambda": round(prs2net["net"]["lambda"]*1e6/dbu),
 	}
 
 	if "connectivity" not in lyt["technology"]:
@@ -452,24 +440,57 @@ def createLYPFromACT(layout, actHome):
 		defaultProperties = lyp["layer-properties"]["properties"]
 	lyp["layer-properties"]["properties"] = []
 
-	ndiff = set()
+	ndiffs = set()
 	for diff in layout["diff"]["ntype"]:
 		if diff in layout["materials"] and "gds" in layout["materials"][diff]:
-			ndiff.update(layout["materials"][diff]["gds"])
+			ndiffs.update(layout["materials"][diff]["gds"])
+	for well in layout["diff"]["pfet_well"]:
+		well = well.split(":")[1]
+		if len(well) > 0 and well in layout["materials"] and "gds" in layout["materials"][well]:
+			ndiffs.update(layout["materials"][well]["gds"])
 
-	pdiff = set()
+	pdiffs = set()
 	for diff in layout["diff"]["ptype"]:
 		if diff in layout["materials"] and "gds" in layout["materials"][diff]:
-			pdiff.update(layout["materials"][diff]["gds"])
-	diff = ndiff & pdiff
-	ndiff = list(ndiff - diff)
-	pdiff = list(pdiff - diff)
-	diff = list(diff)
+			pdiffs.update(layout["materials"][diff]["gds"])
+	for well in layout["diff"]["nfet_well"]:
+		well = well.split(":")[1]
+		if len(well) > 0 and well in layout["materials"] and "gds" in layout["materials"][well]:
+			pdiffs.update(layout["materials"][well]["gds"])
+	diffs = ndiffs & pdiffs
+	ndiffs = list(ndiffs - diffs)
+	pdiffs = list(pdiffs - diffs)
+	diffs = list(diffs)
+
+	diffsSupport = [splitLayerID(layer)[0] for layer in diffs]
+	ndiffsSupport = [splitLayerID(layer)[0] for layer in ndiffs]
+	pdiffsSupport = [splitLayerID(layer)[0] for layer in pdiffs]
+
+	pwells = set()
+	for well in layout["diff"]["nfet_well"]:
+		well = well.split(":")[0]
+		if len(well) > 0 and well in layout["materials"] and "gds" in layout["materials"][well]:
+			pwells.update(layout["materials"][well]["gds"])
+
+	nwells = set()
+	for well in layout["diff"]["pfet_well"]:
+		well = well.split(":")[0]
+		if len(well) > 0 and well in layout["materials"] and "gds" in layout["materials"][well]:
+			nwells.update(layout["materials"][well]["gds"])
+	wells = nwells & pwells
+	nwells = list(nwells - wells)
+	pwells = list(pwells - wells)
+	wells = list(wells)
+
+	wellsSupport = [splitLayerID(layer)[0] for layer in wells]
+	nwellsSupport = [splitLayerID(layer)[0] for layer in nwells]
+	pwellsSupport = [splitLayerID(layer)[0] for layer in pwells]
 
 	poly = set()
 	if "polysilicon" in layout["materials"] and "gds" in layout["materials"]["polysilicon"]:
 		poly = set(layout["materials"]["polysilicon"]["gds"])
 	poly = list(poly)	
+	polySupport = [splitLayerID(layer)[0] for layer in poly]
 
 	metals = list()
 	if "metals" in layout["general"] and "metal" in layout["materials"]:
@@ -477,8 +498,42 @@ def createLYPFromACT(layout, actHome):
 			key = f"m{mid+1}_gds"
 			if key in layout["materials"]["metal"]:
 				metals.append(layout["materials"]["metal"][key])
+	metalsSupport = [[splitLayerID(layer)[0] for layer in metal] for metal in metals]
 	metalCol = ["#0000ff", "#ff0080", "#ffa900", "#d700ff", "#00feff", "#13ff00"]
-	metalDith = ["I8", "I4"]
+	metalDith = ["I6", "I4", "I8", "I4", "I8", "I4"]
+	metalSupportDith = ["I10", "I8", "I4", "I8", "I4", "I8"]
+
+	viaDiffs = set()
+	if "vias" in layout:
+		for diff in layout["diff"]["ntype"]:
+			if f"{diff}_gds" in layout["vias"]:
+				viaDiffs.update(layout["vias"][f"{diff}_gds"])
+		for diff in layout["diff"]["ptype"]:
+			if f"{diff}_gds" in layout["vias"]:
+				viaDiffs.update(layout["vias"][f"{diff}_gds"])
+		for well in layout["diff"]["nfet_well"]:
+			well = well.split(":")[1]
+			if len(well) > 0 and f"{well}_gds" in layout["vias"]:
+				viaDiffs.update(layout["vias"][f"{well}_gds"])
+		for well in layout["diff"]["pfet_well"]:
+			well = well.split(":")[1]
+			if len(well) > 0 and f"{well}_gds" in layout["vias"]:
+				viaDiffs.update(layout["vias"][f"{well}_gds"])
+	viaDiffs = list(viaDiffs)
+	viaDiffsSupport = [splitLayerID(layer)[0] for layer in viaDiffs]
+
+	viaWells = set()
+	if "vias" in layout:
+		for well in layout["diff"]["nfet_well"]:
+			well = well.split(":")[0]
+			if len(well) > 0 and f"{well}_gds" in layout["vias"]:
+				viaWells.update(layout["vias"][f"{well}_gds"])
+		for well in layout["diff"]["pfet_well"]:
+			well = well.split(":")[0]
+			if len(well) > 0 and f"{well}_gds" in layout["vias"]:
+				viaWells.update(layout["vias"][f"{well}_gds"])
+	viaWells = list(viaWells)
+	viaWellsSupport = [splitLayerID(layer)[0] for layer in viaWells]
 
 	vias = list()
 	if "metals" in layout["general"] and "vias" in layout:
@@ -486,12 +541,12 @@ def createLYPFromACT(layout, actHome):
 			key = f"m{mid+1}_gds"
 			if key in layout["vias"]:
 				vias.append(layout["vias"][key])
+	viasSupport = [[splitLayerID(layer)[0] for layer in via] for via in vias]
 	viaCol = ["#aaaaff", "#ff9acd", "#ffe1a6", "#f2abff", "#b6ffff", "#c9ffc4"]
-
-	pprint.pprint(layers)
 
 	for layer, major, minor, purpose in layers:
 		properties = copy.deepcopy(defaultProperties)
+		name, purposeFull = splitLayerID(layer)
 
 		properties |= {
 			"name": f"{layer} - {major}/{minor}",
@@ -515,28 +570,52 @@ def createLYPFromACT(layout, actHome):
 				"line-style": "C0",
 				"xfill": True,
 			}
-		elif layer in diff:
-			idx = diff.index(layer)
+		elif layer in diffs:
+			idx = diffs.index(layer)
 			properties |= {
 				"frame-color": "#ffc280",
 				"fill-color": "#ffc280",
 				"dither-pattern": "I2",
 				"line-style": "C0",
 			}
-		elif layer in ndiff:
-			idx = ndiff.index(layer)
+		elif layer in ndiffs:
+			idx = ndiffs.index(layer)
 			properties |= {
 				"frame-color": "#80a8ff",
 				"fill-color": "#80a8ff",
 				"dither-pattern": "I3",
 				"line-style": "C0",
 			}
-		elif layer in pdiff:
-			idx = pdiff.index(layer)
+		elif layer in pdiffs:
+			idx = pdiffs.index(layer)
 			properties |= {
 				"frame-color": "#ff9d9d",
 				"fill-color": "#ff9d9d",
 				"dither-pattern": "I3",
+				"line-style": "C0",
+			}
+		elif layer in wells:
+			idx = wells.index(layer)
+			properties |= {
+				"frame-color": "#ffc280",
+				"fill-color": "#ffc280",
+				"dither-pattern": "I1",
+				"line-style": "C0",
+			}
+		elif layer in nwells:
+			idx = nwells.index(layer)
+			properties |= {
+				"frame-color": "#ff0000",
+				"fill-color": "#ff0000",
+				"dither-pattern": "I1",
+				"line-style": "C0",
+			}
+		elif layer in pwells:
+			idx = pwells.index(layer)
+			properties |= {
+				"frame-color": "#0000ff",
+				"fill-color": "#0000ff",
+				"dither-pattern": "I1",
 				"line-style": "C0",
 			}
 		elif layer in poly:
@@ -544,7 +623,7 @@ def createLYPFromACT(layout, actHome):
 			properties |= {
 				"frame-color": "#01ff6b",
 				"fill-color": "#01ff6b",
-				"dither-pattern": "I4",
+				"dither-pattern": "I2",
 				"line-style": "C0",
 			}
 		elif layer in set(sum(metals, [])):
@@ -561,6 +640,121 @@ def createLYPFromACT(layout, actHome):
 			for vid, via in enumerate(vias):
 				if layer in via:
 					idx = via.index(layer)
+					properties |= {
+						"frame-color": viaCol[vid%len(viaCol)],
+						"fill-color": viaCol[vid%len(viaCol)],
+						"dither-pattern": "I0",
+						"line-style": "C0",
+					}
+		elif layer in viaDiffs:
+			idx = viaDiffs.index(layer)
+			properties |= {
+				"frame-color": "#ffffff",
+				"fill-color": "#ffffff",
+				"dither-pattern": "I0",
+				"line-style": "C0",
+			}
+		elif layer in viaWells:
+			idx = viaWells.index(layer)
+			properties |= {
+				"frame-color": "#aaffff",
+				"fill-color": "#aaffff",
+				"dither-pattern": "I0",
+				"line-style": "C0",
+			}
+		elif purpose == "ll":
+			properties |= {
+				"frame-color": "#ffffff",
+				"fill-color": "#ffffff",
+				"dither-pattern": "I0",
+				"line-style": "C0",
+			}
+		elif name in diffsSupport:
+			idx = diffsSupport.index(name)
+			properties |= {
+				"frame-color": "#ffc280",
+				"fill-color": "#ffc280",
+				"dither-pattern": "I0",
+				"line-style": "C0",
+			}
+		elif name in ndiffsSupport:
+			idx = ndiffsSupport.index(name)
+			properties |= {
+				"frame-color": "#80a8ff",
+				"fill-color": "#80a8ff",
+				"dither-pattern": "I2",
+				"line-style": "C0",
+			}
+		elif name in pdiffsSupport:
+			idx = pdiffsSupport.index(name)
+			properties |= {
+				"frame-color": "#ff9d9d",
+				"fill-color": "#ff9d9d",
+				"dither-pattern": "I2",
+				"line-style": "C0",
+			}
+		elif name in wellsSupport:
+			idx = wellsSupport.index(name)
+			properties |= {
+				"frame-color": "#ffc280",
+				"fill-color": "#ffc280",
+				"dither-pattern": "I3",
+				"line-style": "C0",
+			}
+		elif name in nwellsSupport:
+			idx = nwellsSupport.index(name)
+			properties |= {
+				"frame-color": "#ff0000",
+				"fill-color": "#ff0000",
+				"dither-pattern": "I3",
+				"line-style": "C0",
+			}
+		elif name in pwellsSupport:
+			idx = pwellsSupport.index(name)
+			properties |= {
+				"frame-color": "#0000ff",
+				"fill-color": "#0000ff",
+				"dither-pattern": "I3",
+				"line-style": "C0",
+			}
+		elif name in polySupport:
+			idx = polySupport.index(name)
+			properties |= {
+				"frame-color": "#01ff6b",
+				"fill-color": "#01ff6b",
+				"dither-pattern": "I0",
+				"line-style": "C0",
+			}
+		elif name in viaDiffsSupport:
+			idx = viaDiffsSupport.index(name)
+			properties |= {
+				"frame-color": "#000000",
+				"fill-color": "#ffffff",
+				"dither-pattern": "I1",
+				"line-style": "C0",
+			}
+		elif name in viaWellsSupport:
+			idx = viaWellsSupport.index(name)
+			properties |= {
+				"frame-color": "#000000",
+				"fill-color": "#aaffff",
+				"dither-pattern": "I1",
+				"line-style": "C0",
+			}
+		elif name in set(sum(metalsSupport, [])):
+			for mid, met in enumerate(metalsSupport):
+				if name in met:
+					idx = met.index(name)
+					properties |= {
+						"frame-color": metalCol[mid%len(metalCol)],
+						"fill-color": metalCol[mid%len(metalCol)],
+						"dither-pattern": metalSupportDith[mid%len(metalDith)],
+						"line-style": "C0",
+					}
+		elif name in set(sum(viasSupport, [])):
+			for vid, via in enumerate(viasSupport):
+				if name in via:
+					idx = via.index(name)
 					properties |= {
 						"frame-color": viaCol[vid%len(viaCol)],
 						"fill-color": viaCol[vid%len(viaCol)],
