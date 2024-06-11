@@ -5,7 +5,7 @@ clone this to your personal computer with the following command line:
 
 ```
 cd /opt/tech
-git clone ssh://<user>@tiny.broccolimicro.io:2222/opt/tech/sky130
+git clone https://github.com/broccolimicro/sky130.git
 cd sky130
 git submodule update --init --recursive
 ```
